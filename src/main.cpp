@@ -5,9 +5,11 @@
 #define GLFW_INCLUDE_GLEXT
 #include <GLFW/glfw3.h>
 
+#include <bit>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <vector>
@@ -20,20 +22,14 @@ void glfw_error_callback(int error, const char *description)
     std::cerr << "GLFW Error " << error << ": " << description << '\n';
 }
 
-struct Pixel
-{
-    std::uint8_t r;
-    std::uint8_t g;
-    std::uint8_t b;
-};
-
 [[nodiscard]] inline constexpr float random(std::uint32_t &state) noexcept
 {
     state ^= state << 13;
     state ^= state >> 17;
     state ^= state << 5;
-    return static_cast<float>(state) /
-           static_cast<float>(std::numeric_limits<std::uint32_t>::max());
+    return static_cast<float>(state) *
+           (1.0f /
+            static_cast<float>(std::numeric_limits<std::uint32_t>::max()));
 }
 
 } // namespace
@@ -90,12 +86,14 @@ int main()
         glfwGetProcAddress("glBlitFramebuffer"));
     assert(glBlitFramebuffer);
 
-    constexpr int framebuffer_width {160};
-    constexpr int framebuffer_height {90};
-    std::vector<Pixel> pixels(
-        static_cast<std::size_t>(framebuffer_width * framebuffer_height));
+    constexpr int buffer_width {160};
+    constexpr int buffer_height {90};
+    constexpr auto buffer_size {
+        static_cast<std::size_t>(buffer_width * buffer_height * 3)};
+    std::vector<std::uint8_t> pixel_buffer(buffer_size);
+    std::vector<float> accumulation_buffer(buffer_size);
 
-    std::uint32_t rng_state {2345678};
+    std::uint32_t rng_state {123456789};
 
     GLuint texture {};
     glGenTextures(1, &texture);
@@ -108,16 +106,19 @@ int main()
         GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
+    int samples {1};
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
-        for (auto &pixel : pixels)
+        for (std::size_t i {}; i < buffer_size; ++i)
         {
-            pixel.r = static_cast<std::uint8_t>(random(rng_state) * 255.0f);
-            pixel.g = static_cast<std::uint8_t>(random(rng_state) * 255.0f);
-            pixel.b = static_cast<std::uint8_t>(random(rng_state) * 255.0f);
+            accumulation_buffer[i] += random(rng_state);
+            pixel_buffer[i] = static_cast<std::uint8_t>(
+                accumulation_buffer[i] / static_cast<float>(samples) * 255.0f);
         }
+        ++samples;
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -127,6 +128,7 @@ int main()
         ImGui::Text("%.2f ms/frame, %.1f fps",
                     static_cast<double>(1000.0f / ImGui::GetIO().Framerate),
                     static_cast<double>(ImGui::GetIO().Framerate));
+        ImGui::Text("%d samples", samples);
         ImGui::End();
 
         ImGui::Render();
@@ -141,21 +143,50 @@ int main()
         glTexImage2D(GL_TEXTURE_2D,
                      0,
                      GL_RGB,
-                     framebuffer_width,
-                     framebuffer_height,
+                     buffer_width,
+                     buffer_height,
                      0,
                      GL_RGB,
                      GL_UNSIGNED_BYTE,
-                     pixels.data());
+                     pixel_buffer.data());
+
+        constexpr auto buffer_aspect_ratio {static_cast<float>(buffer_width) /
+                                            static_cast<float>(buffer_height)};
+        const auto window_aspect_ratio {static_cast<float>(window_width) /
+                                        static_cast<float>(window_height)};
+        int displayed_x0;
+        int displayed_y0;
+        int displayed_x1;
+        int displayed_y1;
+        if (window_aspect_ratio >= buffer_aspect_ratio)
+        {
+            const auto displayed_width {static_cast<int>(
+                static_cast<float>(window_height) * buffer_aspect_ratio)};
+            const auto displayed_height {window_height};
+            displayed_x0 = (window_width - displayed_width) / 2;
+            displayed_y0 = 0;
+            displayed_x1 = displayed_x0 + displayed_width;
+            displayed_y1 = displayed_y0 + displayed_height;
+        }
+        else
+        {
+            const auto displayed_width {window_width};
+            const auto displayed_height {static_cast<int>(
+                static_cast<float>(window_width) / buffer_aspect_ratio)};
+            displayed_x0 = 0;
+            displayed_y0 = (window_height - displayed_height) / 2;
+            displayed_x1 = displayed_x0 + displayed_width;
+            displayed_y1 = displayed_y0 + displayed_height;
+        }
 
         glBlitFramebuffer(0,
                           0,
-                          framebuffer_width,
-                          framebuffer_height,
-                          0,
-                          0,
-                          window_width,
-                          window_height,
+                          buffer_width,
+                          buffer_height,
+                          displayed_x0,
+                          displayed_y0,
+                          displayed_x1,
+                          displayed_y1,
                           GL_COLOR_BUFFER_BIT,
                           GL_NEAREST);
 
