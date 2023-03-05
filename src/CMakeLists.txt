@@ -1,6 +1,5 @@
 add_library(imgui STATIC
         ${CMAKE_SOURCE_DIR}/external/imgui/imgui.cpp
-        ${CMAKE_SOURCE_DIR}/external/imgui/imgui_demo.cpp
         ${CMAKE_SOURCE_DIR}/external/imgui/imgui_draw.cpp
         ${CMAKE_SOURCE_DIR}/external/imgui/imgui_tables.cpp
         ${CMAKE_SOURCE_DIR}/external/imgui/imgui_widgets.cpp
