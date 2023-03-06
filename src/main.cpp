@@ -1,3 +1,6 @@
+#include "random.hpp"
+#include "vec3.hpp"
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -5,9 +8,6 @@
 #define GLFW_INCLUDE_GLEXT
 #include <GLFW/glfw3.h>
 
-#include <bit>
-#include <cassert>
-#include <cstdint>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
@@ -17,19 +17,16 @@
 namespace
 {
 
+struct Pixel
+{
+    std::uint8_t r;
+    std::uint8_t g;
+    std::uint8_t b;
+};
+
 void glfw_error_callback(int error, const char *description)
 {
     std::cerr << "GLFW Error " << error << ": " << description << '\n';
-}
-
-[[nodiscard]] inline constexpr float random(std::uint32_t &state) noexcept
-{
-    state ^= state << 13;
-    state ^= state >> 17;
-    state ^= state << 5;
-    return static_cast<float>(state) *
-           (1.0f /
-            static_cast<float>(std::numeric_limits<std::uint32_t>::max()));
 }
 
 } // namespace
@@ -68,30 +65,23 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    const auto glGenFramebuffers = reinterpret_cast<PFNGLGENFRAMEBUFFERSPROC>(
-        glfwGetProcAddress("glGenFramebuffers"));
-    assert(glGenFramebuffers);
-    const auto glBindFramebuffer = reinterpret_cast<PFNGLBINDFRAMEBUFFERPROC>(
-        glfwGetProcAddress("glBindFramebuffer"));
-    assert(glBindFramebuffer);
-    const auto glFramebufferTexture2D =
-        reinterpret_cast<PFNGLFRAMEBUFFERTEXTURE2DPROC>(
-            glfwGetProcAddress("glFramebufferTexture2D"));
-    assert(glFramebufferTexture2D);
-    const auto glDeleteFramebuffers =
-        reinterpret_cast<PFNGLDELETEFRAMEBUFFERSPROC>(
-            glfwGetProcAddress("glDeleteFramebuffers"));
-    assert(glDeleteFramebuffers);
-    const auto glBlitFramebuffer = reinterpret_cast<PFNGLBLITFRAMEBUFFERPROC>(
-        glfwGetProcAddress("glBlitFramebuffer"));
-    assert(glBlitFramebuffer);
+#define LOAD_FUNCTION(name, type)                                              \
+    const auto name = reinterpret_cast<type>(glfwGetProcAddress(#name))
+
+    LOAD_FUNCTION(glGenFramebuffers, PFNGLGENFRAMEBUFFERSPROC);
+    LOAD_FUNCTION(glBindFramebuffer, PFNGLBINDFRAMEBUFFERPROC);
+    LOAD_FUNCTION(glFramebufferTexture2D, PFNGLFRAMEBUFFERTEXTURE2DPROC);
+    LOAD_FUNCTION(glBlitFramebuffer, PFNGLBLITFRAMEBUFFERPROC);
+    LOAD_FUNCTION(glDeleteFramebuffers, PFNGLDELETEFRAMEBUFFERSPROC);
+
+#undef LOAD_FUNCTION
 
     constexpr int buffer_width {160};
     constexpr int buffer_height {90};
     constexpr auto buffer_size {
-        static_cast<std::size_t>(buffer_width * buffer_height * 3)};
-    std::vector<std::uint8_t> pixel_buffer(buffer_size);
-    std::vector<float> accumulation_buffer(buffer_size);
+        static_cast<std::size_t>(buffer_width * buffer_height)};
+    std::vector<Pixel> pixel_buffer(buffer_size);
+    std::vector<vec3> accumulation_buffer(buffer_size);
 
     std::uint32_t rng_state {123456789};
 
@@ -114,9 +104,14 @@ int main()
 
         for (std::size_t i {}; i < buffer_size; ++i)
         {
-            accumulation_buffer[i] += random(rng_state);
-            pixel_buffer[i] = static_cast<std::uint8_t>(
-                accumulation_buffer[i] / static_cast<float>(samples) * 255.0f);
+            const vec3 sample_color {
+                random(rng_state), random(rng_state), random(rng_state)};
+            accumulation_buffer[i] += sample_color;
+            const auto color {accumulation_buffer[i] /
+                              static_cast<float>(samples)};
+            pixel_buffer[i] = {static_cast<std::uint8_t>(color.x * 255.0f),
+                               static_cast<std::uint8_t>(color.y * 255.0f),
+                               static_cast<std::uint8_t>(color.z * 255.0f)};
         }
         ++samples;
 
