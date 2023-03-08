@@ -1,4 +1,5 @@
 #include "random.hpp"
+#include "simd.hpp"
 #include "vec3.hpp"
 
 #include "imgui.h"
@@ -33,6 +34,11 @@ void glfw_error_callback(int error, const char *description)
 
 int main()
 {
+#if 1
+
+    return EXIT_SUCCESS;
+
+#else
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
@@ -201,4 +207,5 @@ int main()
     glfwTerminate();
 
     return EXIT_SUCCESS;
+#endif
 }
