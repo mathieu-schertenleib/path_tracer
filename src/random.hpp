@@ -2,7 +2,7 @@
 #define RANDOM_HPP
 
 #include "definitions.hpp"
-#include "vec3.hpp"
+#include "float3.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -18,13 +18,13 @@
             static_cast<float>(std::numeric_limits<std::uint32_t>::max()));
 }
 
-// Returns a random vec3 with length <= 1.0
-[[nodiscard]] FORCE_INLINE constexpr vec3
+// Returns a random float3 with length <= 1.0
+[[nodiscard]] FORCE_INLINE constexpr float3
 random_in_sphere(std::uint32_t &state) noexcept
 {
     for (;;)
     {
-        const vec3 v {random(state) * 2.0f - 1.0f,
+        const float3 v {random(state) * 2.0f - 1.0f,
                       random(state) * 2.0f - 1.0f,
                       random(state) * 2.0f - 1.0f};
         if (dot(v, v) <= 1.0f)
@@ -34,12 +34,12 @@ random_in_sphere(std::uint32_t &state) noexcept
     }
 }
 
-[[nodiscard]] FORCE_INLINE vec3
+[[nodiscard]] FORCE_INLINE float3
 random_unit_vector(std::uint32_t &state) noexcept
 {
     for (;;)
     {
-        const vec3 v {random(state) * 2.0f - 1.0f,
+        const float3 v {random(state) * 2.0f - 1.0f,
                       random(state) * 2.0f - 1.0f,
                       random(state) * 2.0f - 1.0f};
         if (const auto length_sq {dot(v, v)};

@@ -1,6 +1,5 @@
+#include "geometry.hpp"
 #include "random.hpp"
-#include "simd.hpp"
-#include "vec3.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -30,15 +29,31 @@ void glfw_error_callback(int error, const char *description)
     std::cerr << "GLFW Error " << error << ": " << description << '\n';
 }
 
+std::ostream &operator<<(std::ostream &stream, float3 v)
+{
+    stream << '(' << v.x << ", " << v.y << ", " << v.z << ')';
+    return stream;
+}
+
 } // namespace
 
 int main()
 {
 #if 1
 
+    std::vector<Triangle> triangles;
+    const Ray ray {};
+    const auto payload = intersect(ray, triangles);
+    std::cout << "position: " << payload.position << '\n'
+              << "id: " << std::hex << std::showbase << payload.primitive_id
+              << '\n'
+              << "u: " << payload.u << '\n'
+              << "v: " << payload.v << '\n';
+
     return EXIT_SUCCESS;
 
 #else
+
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
@@ -87,7 +102,7 @@ int main()
     constexpr auto buffer_size {
         static_cast<std::size_t>(buffer_width * buffer_height)};
     std::vector<Pixel> pixel_buffer(buffer_size);
-    std::vector<vec3> accumulation_buffer(buffer_size);
+    std::vector<float3> accumulation_buffer(buffer_size);
 
     std::uint32_t rng_state {123456789};
 
@@ -110,7 +125,7 @@ int main()
 
         for (std::size_t i {}; i < buffer_size; ++i)
         {
-            const vec3 sample_color {
+            const float3 sample_color {
                 random(rng_state), random(rng_state), random(rng_state)};
             accumulation_buffer[i] += sample_color;
             const auto color {accumulation_buffer[i] /
@@ -207,5 +222,6 @@ int main()
     glfwTerminate();
 
     return EXIT_SUCCESS;
+
 #endif
 }

@@ -13,7 +13,8 @@ target_include_directories(imgui PRIVATE
 
 
 add_executable(path_tracer
-        main.cpp)
+        main.cpp
+        geometry.cpp)
 
 target_include_directories(path_tracer PRIVATE
         ${CMAKE_SOURCE_DIR}/external/imgui

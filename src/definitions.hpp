@@ -7,4 +7,8 @@
 #define FORCE_INLINE __attribute__((always_inline)) inline
 #endif
 
+#include <cstdint>
+
+using u32 = std::uint32_t;
+
 #endif // DEFINITIONS_HPP
