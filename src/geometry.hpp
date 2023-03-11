@@ -2,7 +2,7 @@
 #define GEOMETRY_HPP
 
 #include "definitions.hpp"
-#include "float3.hpp"
+#include "vec3.hpp"
 
 #include <vector>
 

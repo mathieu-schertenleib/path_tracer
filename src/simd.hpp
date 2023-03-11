@@ -8,7 +8,6 @@
 namespace simd
 {
 
-// FIXME: this only supports AVX for now
 struct vfloat
 {
     __m256 v;
@@ -35,26 +34,22 @@ set(float a, float b, float c, float d, float e, float f, float g, float h)
     return {_mm256_broadcast_ss(p)};
 }
 
-// Aligned
-[[nodiscard]] FORCE_INLINE vfloat load(const float *p)
+[[nodiscard]] FORCE_INLINE vfloat load_aligned(const float *p)
 {
     return {_mm256_load_ps(p)};
 }
 
-// Aligned
-FORCE_INLINE void store(float *p, vfloat a)
+FORCE_INLINE void store_aligned(float *p, vfloat a)
 {
     _mm256_store_ps(p, a.v);
 }
 
-// Unaligned
-[[nodiscard]] FORCE_INLINE vfloat loadu(const float *p)
+[[nodiscard]] FORCE_INLINE vfloat load_unaligned(const float *p)
 {
     return {_mm256_loadu_ps(p)};
 }
 
-// Unaligned
-FORCE_INLINE void storeu(float *p, vfloat a)
+FORCE_INLINE void store_unaligned(float *p, vfloat a)
 {
     _mm256_storeu_ps(p, a.v);
 }

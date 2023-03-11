@@ -14,11 +14,13 @@ target_include_directories(imgui PRIVATE
 
 add_executable(path_tracer
         main.cpp
+        render.cpp
         geometry.cpp)
 
 target_include_directories(path_tracer PRIVATE
         ${CMAKE_SOURCE_DIR}/external/imgui
-        ${CMAKE_SOURCE_DIR}/external/imgui/backends)
+        ${CMAKE_SOURCE_DIR}/external/imgui/backends
+        ${CMAKE_SOURCE_DIR}/external/stb)
 
 target_compile_features(path_tracer PRIVATE cxx_std_20)
 
@@ -61,5 +63,3 @@ else ()
 endif ()
 
 target_compile_definitions(path_tracer PRIVATE $<$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>:NDEBUG>)
-
-#set_target_properties(path_tracer PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
