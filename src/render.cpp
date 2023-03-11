@@ -2,6 +2,17 @@
 
 #include "random.hpp"
 
+namespace
+{
+
+[[nodiscard]] constexpr float3 random_primitive_color(u32 primitive_id) noexcept
+{
+    auto rng_state = seed(primitive_id + 1);
+    return {random(rng_state), random(rng_state), random(rng_state)};
+}
+
+} // namespace
+
 Camera create_camera(float3 position,
                      float3 direction,
                      float3 up,
@@ -28,7 +39,6 @@ Scene cornell_box()
     // y towards ceiling
     // z towards back
     // (0, 0, 0) is the front bottom right corner
-    // quad vertices counter-clockwise
 
     constexpr float3 floor[] {{552.8f, 0.0f, 0.0f},
                               {0.0f, 0.0f, 0.0f},
@@ -127,26 +137,47 @@ float3 sample_pixel(const Scene &scene,
                     int pixel_i,
                     int pixel_j,
                     int image_width,
-                    int image_height)
+                    int image_height,
+                    Sample_type sample_type,
+                    u32 &rng_state)
 {
+#if 1
+    const auto x = (static_cast<float>(pixel_j) + random(rng_state)) /
+                       static_cast<float>(image_width) -
+                   0.5f;
+    const auto y =
+        (static_cast<float>(image_height - 1 - pixel_i) + random(rng_state)) /
+            static_cast<float>(image_height) -
+        0.5f;
+#else
     const auto x = (static_cast<float>(pixel_j) + 0.5f) /
                        static_cast<float>(image_width) * 2.0f -
                    1.0f;
     const auto y = (static_cast<float>(image_height - 1 - pixel_i) + 0.5f) /
                        static_cast<float>(image_height) * 2.0f -
                    1.0f;
-    const Ray ray {
-        .origin = scene.camera.position,
-        .direction = normalize(
-            scene.camera.focal_length * scene.camera.direction +
-            x * scene.camera.sensor_width * 0.5f * scene.camera.local_x +
-            y * scene.camera.sensor_height * 0.5f * scene.camera.local_y)};
+#endif
+    const Ray ray {.origin = scene.camera.position,
+                   .direction = normalize(
+                       scene.camera.focal_length * scene.camera.direction +
+                       x * scene.camera.sensor_width * scene.camera.local_x +
+                       y * scene.camera.sensor_height * scene.camera.local_y)};
     const auto payload = intersect(ray, scene.triangles);
     if (payload.primitive_id == 0xffffffffu)
     {
         return scene.background_color;
     }
-    // Assign each primitive a random color
-    auto rng_state = seed(payload.primitive_id + 1);
-    return {random(rng_state), random(rng_state), random(rng_state)};
+
+    switch (sample_type)
+    {
+    case Sample_type::radiance: return {};
+    case Sample_type::base_color: return {};
+    case Sample_type::primitive_id:
+        return random_primitive_color(payload.primitive_id);
+    case Sample_type::material_id: return {};
+    case Sample_type::uv:
+        return {payload.u, payload.v, 1.0f - payload.u - payload.v};
+    }
+
+    return {};
 }

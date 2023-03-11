@@ -26,6 +26,7 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
+#include <random>
 #include <vector>
 
 namespace
@@ -113,47 +114,17 @@ int main()
 
     char image_filename[256] {};
 
+    auto rng_state = seed(std::random_device {}());
+    if (rng_state == 0)
+    {
+        rng_state = 123456789;
+    }
+
+    Sample_type sample_type {Sample_type::primitive_id};
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-
-        for (int s {}; s < samples_per_frame && samples < total_samples; ++s)
-        {
-            for (int i {}; i < image_height; ++i)
-            {
-                for (int j {}; j < image_width; ++j)
-                {
-                    const auto sample_color =
-                        sample_pixel(scene, i, j, image_width, image_height);
-                    const auto pixel_index =
-                        static_cast<std::size_t>(i) *
-                            static_cast<std::size_t>(image_width) +
-                        static_cast<std::size_t>(j);
-                    accumulation_buffer[pixel_index] += sample_color;
-                }
-            }
-            ++samples;
-        }
-
-        for (int i {}; i < image_height; ++i)
-        {
-            for (int j {}; j < image_width; ++j)
-            {
-                const auto buffer_index =
-                    static_cast<std::size_t>(i) *
-                        static_cast<std::size_t>(image_width) +
-                    static_cast<std::size_t>(j);
-                const auto color = accumulation_buffer[buffer_index] /
-                                   static_cast<float>(samples);
-                const auto pixel_index =
-                    static_cast<std::size_t>(image_height - 1 - i) *
-                        static_cast<std::size_t>(image_width) +
-                    static_cast<std::size_t>(j);
-                pixel_buffer[pixel_index] = {static_cast<u8>(color.x * 255.0f),
-                                             static_cast<u8>(color.y * 255.0f),
-                                             static_cast<u8>(color.z * 255.0f)};
-            }
-        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -180,7 +151,22 @@ int main()
                 reset_samples = true;
             }
 
-            reset_samples = reset_samples || ImGui::Button("Reset samples");
+            if (ImGui::Button("Reset samples"))
+            {
+                reset_samples = true;
+            }
+
+            constexpr const char *sample_types[5] {
+                "radiance", "base_color", "primitive_id", "material_id", "uv"};
+            auto sample_type_int = static_cast<int>(sample_type);
+            if (ImGui::Combo("Sample type",
+                             &sample_type_int,
+                             sample_types,
+                             std::size(sample_types)))
+            {
+                reset_samples = true;
+            }
+            sample_type = static_cast<Sample_type>(sample_type_int);
 
             if (reset_samples)
             {
@@ -216,6 +202,49 @@ int main()
         ImGui::End();
 
         ImGui::Render();
+
+        for (int s {}; s < samples_per_frame && samples < total_samples; ++s)
+        {
+            for (int i {}; i < image_height; ++i)
+            {
+                for (int j {}; j < image_width; ++j)
+                {
+                    const auto sample_color = sample_pixel(scene,
+                                                           i,
+                                                           j,
+                                                           image_width,
+                                                           image_height,
+                                                           sample_type,
+                                                           rng_state);
+                    const auto pixel_index =
+                        static_cast<std::size_t>(i) *
+                            static_cast<std::size_t>(image_width) +
+                        static_cast<std::size_t>(j);
+                    accumulation_buffer[pixel_index] += sample_color;
+                }
+            }
+            ++samples;
+        }
+
+        for (int i {}; i < image_height; ++i)
+        {
+            for (int j {}; j < image_width; ++j)
+            {
+                const auto buffer_index =
+                    static_cast<std::size_t>(i) *
+                        static_cast<std::size_t>(image_width) +
+                    static_cast<std::size_t>(j);
+                const auto color = accumulation_buffer[buffer_index] /
+                                   static_cast<float>(samples);
+                const auto pixel_index =
+                    static_cast<std::size_t>(image_height - 1 - i) *
+                        static_cast<std::size_t>(image_width) +
+                    static_cast<std::size_t>(j);
+                pixel_buffer[pixel_index] = {static_cast<u8>(color.x * 255.0f),
+                                             static_cast<u8>(color.y * 255.0f),
+                                             static_cast<u8>(color.z * 255.0f)};
+            }
+        }
 
         int window_width {};
         int window_height {};

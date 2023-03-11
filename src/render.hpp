@@ -22,6 +22,15 @@ struct Scene
     float3 background_color;
 };
 
+enum struct Sample_type
+{
+    radiance,
+    base_color,
+    primitive_id,
+    material_id,
+    uv
+};
+
 [[nodiscard]] Camera create_camera(float3 position,
                                    float3 direction,
                                    float3 up,
@@ -35,6 +44,8 @@ struct Scene
                                   int pixel_i,
                                   int pixel_j,
                                   int image_width,
-                                  int image_height);
+                                  int image_height,
+                                  Sample_type sample_type,
+                                  u32 &rng_state);
 
 #endif // RENDER_HPP
