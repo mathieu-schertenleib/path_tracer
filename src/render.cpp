@@ -5,9 +5,9 @@
 namespace
 {
 
-[[nodiscard]] constexpr float3 random_primitive_color(u32 primitive_id) noexcept
+[[nodiscard]] constexpr float3 random_color(u32 id) noexcept
 {
-    auto rng_state = seed(primitive_id + 1);
+    auto rng_state = seed(id + 1);
     return {random(rng_state), random(rng_state), random(rng_state)};
 }
 
@@ -170,13 +170,34 @@ float3 sample_pixel(const Scene &scene,
 
     switch (sample_type)
     {
-    case Sample_type::radiance: return {};
-    case Sample_type::base_color: return {};
-    case Sample_type::primitive_id:
-        return random_primitive_color(payload.primitive_id);
-    case Sample_type::material_id: return {};
-    case Sample_type::uv:
+    case Sample_type::color:
+    {
+        return {};
+    }
+    case Sample_type::albedo:
+    {
+        return {};
+    }
+    case Sample_type::normal:
+    {
+        const auto &triangle = scene.triangles[payload.primitive_id];
+        const auto normal =
+            normalize(cross(triangle.vertex1 - triangle.vertex0,
+                            triangle.vertex2 - triangle.vertex0));
+        return (normal + float3 {1.0f, 1.0f, 1.0f}) * 0.5f;
+    }
+    case Sample_type::barycentric:
+    {
         return {payload.u, payload.v, 1.0f - payload.u - payload.v};
+    }
+    case Sample_type::primitive_id:
+    {
+        return random_color(payload.primitive_id);
+    }
+    case Sample_type::material_id:
+    {
+        return {};
+    }
     }
 
     return {};

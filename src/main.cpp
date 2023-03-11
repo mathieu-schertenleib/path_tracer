@@ -11,6 +11,7 @@
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma GCC diagnostic ignored "-Wnull-dereference"
 #endif
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -130,11 +131,13 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (ImGui::Begin("Performance"))
+        if (ImGui::Begin("Debug"))
         {
             ImGui::Text("%.2f ms/frame, %.1f fps",
                         static_cast<double>(1000.0f / ImGui::GetIO().Framerate),
                         static_cast<double>(ImGui::GetIO().Framerate));
+
+            ImGui::Text("%lld triangles", scene.triangles.size());
 
             ImGui::Text("%d samples", samples);
 
@@ -156,8 +159,12 @@ int main()
                 reset_samples = true;
             }
 
-            constexpr const char *sample_types[5] {
-                "radiance", "base_color", "primitive_id", "material_id", "uv"};
+            constexpr const char *sample_types[] {"color",
+                                                  "albedo",
+                                                  "normal",
+                                                  "barycentric",
+                                                  "primitive_id",
+                                                  "material_id"};
             auto sample_type_int = static_cast<int>(sample_type);
             if (ImGui::Combo("Sample type",
                              &sample_type_int,

@@ -24,11 +24,12 @@ struct Scene
 
 enum struct Sample_type
 {
-    radiance,
-    base_color,
+    color,
+    albedo,
+    normal,
+    barycentric,
     primitive_id,
     material_id,
-    uv
 };
 
 [[nodiscard]] Camera create_camera(float3 position,
