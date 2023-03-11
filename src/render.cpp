@@ -5,10 +5,64 @@
 namespace
 {
 
-[[nodiscard]] constexpr float3 random_color(u32 id) noexcept
+[[nodiscard]] constexpr float3 random_color(u32 base_state, u32 id) noexcept
 {
-    auto rng_state = seed(id + 1);
+    auto rng_state = seed(base_state + id);
     return {random(rng_state), random(rng_state), random(rng_state)};
+}
+
+[[nodiscard]] float3
+radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
+{
+    float3 accumulated_color {};
+    float3 accumulated_reflectance {1.0f, 1.0f, 1.0f};
+    auto r = ray;
+    for (int depth {};; ++depth)
+    {
+        const auto payload = intersect(r, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return scene.background_color;
+        }
+
+        const auto &triangle = scene.triangles[payload.primitive_id];
+        const auto triangle_normal =
+            normalize(cross(triangle.vertex1 - triangle.vertex0,
+                            triangle.vertex2 - triangle.vertex0));
+        const auto normal = dot(triangle_normal, r.direction) < 0.0f
+                                ? triangle_normal
+                                : -triangle_normal;
+        auto albedo = scene.materials[triangle.material_id].albedo;
+        const auto p = albedo.x > albedo.y && albedo.x > albedo.z ? albedo.x
+                       : albedo.y > albedo.z                      ? albedo.y
+                                                                  : albedo.z;
+        accumulated_color += accumulated_reflectance *
+                             scene.materials[triangle.material_id].emissivity;
+        if (depth > 5)
+        {
+            if (random(rng_state) >= p || p < 1e-6f)
+            {
+                return accumulated_color;
+            }
+            else
+            {
+                albedo *= (1.0f / p);
+            }
+        }
+        accumulated_reflectance *= albedo;
+
+        auto new_direction = normal + random_in_sphere(rng_state);
+        if (length(new_direction) < 1e-6f)
+        {
+            new_direction = normal;
+        }
+        else
+        {
+            new_direction = normalize(new_direction);
+        }
+        r.origin = payload.position + 1e-6f * normal;
+        r.direction = new_direction;
+    }
 }
 
 } // namespace
@@ -94,42 +148,54 @@ Scene cornell_box()
         {265.0f, 0.0f, 296.0f},   {265.0f, 330.0f, 296.0f},
         {423.0f, 330.0f, 247.0f}, {423.0f, 0.0f, 247.0f}};
 
+    constexpr Material white {.albedo = {0.75f, 0.75f, 0.75f},
+                              .emissivity = {}};
+
+    constexpr Material green {.albedo = {0.25f, 0.75f, 0.25f},
+                              .emissivity = {}};
+
+    constexpr Material red {.albedo = {0.75f, 0.25f, 0.25f}, .emissivity = {}};
+
+    constexpr Material emissive {.albedo = {},
+                                 .emissivity = {12.0f, 12.0f, 12.0f}};
+
     return Scene {
         .camera = create_camera(
             {278, 273, -800}, {0, 0, 1}, {0, 1, 0}, 0.035f, 0.025f, 0.025f),
         .triangles =
-            {{floor[0], floor[1], floor[2]},
-             {floor[0], floor[2], floor[3]},
-             {light[0], light[1], light[2]},
-             {light[0], light[2], light[3]},
-             {ceiling[0], ceiling[1], ceiling[2]},
-             {ceiling[0], ceiling[2], ceiling[3]},
-             {back_wall[0], back_wall[1], back_wall[2]},
-             {back_wall[0], back_wall[2], back_wall[3]},
-             {green_wall[0], green_wall[1], green_wall[2]},
-             {green_wall[0], green_wall[2], green_wall[3]},
-             {red_wall[0], red_wall[1], red_wall[2]},
-             {red_wall[0], red_wall[2], red_wall[3]},
-             {short_block[0 + 0], short_block[0 + 1], short_block[0 + 2]},
-             {short_block[0 + 0], short_block[0 + 2], short_block[0 + 3]},
-             {short_block[4 + 0], short_block[4 + 1], short_block[4 + 2]},
-             {short_block[4 + 0], short_block[4 + 2], short_block[4 + 3]},
-             {short_block[8 + 0], short_block[8 + 1], short_block[8 + 2]},
-             {short_block[8 + 0], short_block[8 + 2], short_block[8 + 3]},
-             {short_block[12 + 0], short_block[12 + 1], short_block[12 + 2]},
-             {short_block[12 + 0], short_block[12 + 2], short_block[12 + 3]},
-             {short_block[16 + 0], short_block[16 + 1], short_block[16 + 2]},
-             {short_block[16 + 0], short_block[16 + 2], short_block[16 + 3]},
-             {tall_block[0 + 0], tall_block[0 + 1], tall_block[0 + 2]},
-             {tall_block[0 + 0], tall_block[0 + 2], tall_block[0 + 3]},
-             {tall_block[4 + 0], tall_block[4 + 1], tall_block[4 + 2]},
-             {tall_block[4 + 0], tall_block[4 + 2], tall_block[4 + 3]},
-             {tall_block[8 + 0], tall_block[8 + 1], tall_block[8 + 2]},
-             {tall_block[8 + 0], tall_block[8 + 2], tall_block[8 + 3]},
-             {tall_block[12 + 0], tall_block[12 + 1], tall_block[12 + 2]},
-             {tall_block[12 + 0], tall_block[12 + 2], tall_block[12 + 3]},
-             {tall_block[16 + 0], tall_block[16 + 1], tall_block[16 + 2]},
-             {tall_block[16 + 0], tall_block[16 + 2], tall_block[16 + 3]}},
+            {{floor[0], floor[1], floor[2], 0},
+             {floor[0], floor[2], floor[3], 0},
+             {light[0], light[1], light[2], 3},
+             {light[0], light[2], light[3], 3},
+             {ceiling[0], ceiling[1], ceiling[2], 0},
+             {ceiling[0], ceiling[2], ceiling[3], 0},
+             {back_wall[0], back_wall[1], back_wall[2], 0},
+             {back_wall[0], back_wall[2], back_wall[3], 0},
+             {green_wall[0], green_wall[1], green_wall[2], 1},
+             {green_wall[0], green_wall[2], green_wall[3], 1},
+             {red_wall[0], red_wall[1], red_wall[2], 2},
+             {red_wall[0], red_wall[2], red_wall[3], 2},
+             {short_block[0 + 0], short_block[0 + 1], short_block[0 + 2], 0},
+             {short_block[0 + 0], short_block[0 + 2], short_block[0 + 3], 0},
+             {short_block[4 + 0], short_block[4 + 1], short_block[4 + 2], 0},
+             {short_block[4 + 0], short_block[4 + 2], short_block[4 + 3], 0},
+             {short_block[8 + 0], short_block[8 + 1], short_block[8 + 2], 0},
+             {short_block[8 + 0], short_block[8 + 2], short_block[8 + 3], 0},
+             {short_block[12 + 0], short_block[12 + 1], short_block[12 + 2], 0},
+             {short_block[12 + 0], short_block[12 + 2], short_block[12 + 3], 0},
+             {short_block[16 + 0], short_block[16 + 1], short_block[16 + 2], 0},
+             {short_block[16 + 0], short_block[16 + 2], short_block[16 + 3], 0},
+             {tall_block[0 + 0], tall_block[0 + 1], tall_block[0 + 2], 0},
+             {tall_block[0 + 0], tall_block[0 + 2], tall_block[0 + 3], 0},
+             {tall_block[4 + 0], tall_block[4 + 1], tall_block[4 + 2], 0},
+             {tall_block[4 + 0], tall_block[4 + 2], tall_block[4 + 3], 0},
+             {tall_block[8 + 0], tall_block[8 + 1], tall_block[8 + 2], 0},
+             {tall_block[8 + 0], tall_block[8 + 2], tall_block[8 + 3], 0},
+             {tall_block[12 + 0], tall_block[12 + 1], tall_block[12 + 2], 0},
+             {tall_block[12 + 0], tall_block[12 + 2], tall_block[12 + 3], 0},
+             {tall_block[16 + 0], tall_block[16 + 1], tall_block[16 + 2], 0},
+             {tall_block[16 + 0], tall_block[16 + 2], tall_block[16 + 3], 0}},
+        .materials = {white, green, red, emissive},
         .background_color = {}};
 }
 
@@ -139,7 +205,8 @@ float3 sample_pixel(const Scene &scene,
                     int image_width,
                     int image_height,
                     Sample_type sample_type,
-                    u32 &rng_state)
+                    u32 &rng_state,
+                    u32 color_rng_state)
 {
 #if 1
     const auto x = (static_cast<float>(pixel_j) + random(rng_state)) /
@@ -162,24 +229,31 @@ float3 sample_pixel(const Scene &scene,
                        scene.camera.focal_length * scene.camera.direction +
                        x * scene.camera.sensor_width * scene.camera.local_x +
                        y * scene.camera.sensor_height * scene.camera.local_y)};
-    const auto payload = intersect(ray, scene.triangles);
-    if (payload.primitive_id == 0xffffffffu)
-    {
-        return scene.background_color;
-    }
 
     switch (sample_type)
     {
     case Sample_type::color:
     {
-        return {};
+        return radiance(scene, ray, rng_state);
     }
     case Sample_type::albedo:
     {
-        return {};
+        const auto payload = intersect(ray, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return scene.background_color;
+        }
+        return scene
+            .materials[scene.triangles[payload.primitive_id].material_id]
+            .albedo;
     }
     case Sample_type::normal:
     {
+        const auto payload = intersect(ray, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return {};
+        }
         const auto &triangle = scene.triangles[payload.primitive_id];
         const auto normal =
             normalize(cross(triangle.vertex1 - triangle.vertex0,
@@ -188,15 +262,31 @@ float3 sample_pixel(const Scene &scene,
     }
     case Sample_type::barycentric:
     {
+        const auto payload = intersect(ray, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return {};
+        }
         return {payload.u, payload.v, 1.0f - payload.u - payload.v};
     }
     case Sample_type::primitive_id:
     {
-        return random_color(payload.primitive_id);
+        const auto payload = intersect(ray, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return {};
+        }
+        return random_color(color_rng_state, payload.primitive_id);
     }
     case Sample_type::material_id:
     {
-        return {};
+        const auto payload = intersect(ray, scene.triangles);
+        if (payload.primitive_id == 0xffffffffu)
+        {
+            return {};
+        }
+        return random_color(color_rng_state,
+                            scene.triangles[payload.primitive_id].material_id);
     }
     }
 

@@ -1,7 +1,7 @@
 #ifndef RENDER_HPP
 #define RENDER_HPP
 
-#include "geometry.hpp"
+#include "trace.hpp"
 #include "vec3.hpp"
 
 struct Camera
@@ -15,10 +15,17 @@ struct Camera
     float sensor_height;
 };
 
+struct Material
+{
+    float3 albedo;
+    float3 emissivity;
+};
+
 struct Scene
 {
     Camera camera;
     std::vector<Triangle> triangles;
+    std::vector<Material> materials;
     float3 background_color;
 };
 
@@ -47,6 +54,7 @@ enum struct Sample_type
                                   int image_width,
                                   int image_height,
                                   Sample_type sample_type,
-                                  u32 &rng_state);
+                                  u32 &rng_state,
+                                  u32 color_rng_state);
 
 #endif // RENDER_HPP

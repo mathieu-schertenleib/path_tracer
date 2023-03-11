@@ -45,6 +45,20 @@ void glfw_error_callback(int error, const char *description)
     std::cerr << "GLFW Error " << error << ": " << description << '\n';
 }
 
+[[nodiscard]] FORCE_INLINE constexpr u8 float_to_u8(float c) noexcept
+{
+    return static_cast<u8>(std::clamp(c, 0.0f, 1.0f) * 255.0f);
+}
+
+[[nodiscard]] FORCE_INLINE float linear_to_srgb(float c)
+{
+    if (c <= 0.0031308f)
+    {
+        return 12.92f * c;
+    }
+    return 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+}
+
 } // namespace
 
 int main()
@@ -111,7 +125,7 @@ int main()
 
     int samples {0};
     int samples_per_frame {1};
-    int total_samples {1};
+    int total_samples {1000};
 
     char image_filename[256] {};
 
@@ -120,8 +134,9 @@ int main()
     {
         rng_state = 123456789;
     }
+    auto color_rng_state = rng_state;
 
-    Sample_type sample_type {Sample_type::primitive_id};
+    Sample_type sample_type {Sample_type::color};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -175,6 +190,12 @@ int main()
             }
             sample_type = static_cast<Sample_type>(sample_type_int);
 
+            if (ImGui::Button("Change colors"))
+            {
+                color_rng_state = rng_state;
+                reset_samples = true;
+            }
+
             if (reset_samples)
             {
                 std::fill(accumulation_buffer.begin(),
@@ -222,7 +243,8 @@ int main()
                                                            image_width,
                                                            image_height,
                                                            sample_type,
-                                                           rng_state);
+                                                           rng_state,
+                                                           color_rng_state);
                     const auto pixel_index =
                         static_cast<std::size_t>(i) *
                             static_cast<std::size_t>(image_width) +
@@ -247,9 +269,10 @@ int main()
                     static_cast<std::size_t>(image_height - 1 - i) *
                         static_cast<std::size_t>(image_width) +
                     static_cast<std::size_t>(j);
-                pixel_buffer[pixel_index] = {static_cast<u8>(color.x * 255.0f),
-                                             static_cast<u8>(color.y * 255.0f),
-                                             static_cast<u8>(color.z * 255.0f)};
+                pixel_buffer[pixel_index] = {
+                    float_to_u8(linear_to_srgb(color.x)),
+                    float_to_u8(linear_to_srgb(color.y)),
+                    float_to_u8(linear_to_srgb(color.z))};
             }
         }
 

@@ -1,5 +1,5 @@
-#ifndef GEOMETRY_HPP
-#define GEOMETRY_HPP
+#ifndef TRACE_HPP
+#define TRACE_HPP
 
 #include "definitions.hpp"
 #include "vec3.hpp"
@@ -17,6 +17,7 @@ struct Triangle
     float3 vertex0;
     float3 vertex1;
     float3 vertex2;
+    u32 material_id;
 };
 
 struct Ray_payload
@@ -30,4 +31,4 @@ struct Ray_payload
 [[nodiscard]] Ray_payload intersect(const Ray &ray,
                                     const std::vector<Triangle> &triangles);
 
-#endif // GEOMETRY_HPP
+#endif // TRACE_HPP

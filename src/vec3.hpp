@@ -4,6 +4,8 @@
 #include "definitions.hpp"
 #include "math.hpp"
 
+#include <functional>
+
 template <typename T>
 struct vec3
 {
@@ -121,6 +123,27 @@ template <typename T>
 {
     return {
         a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
+}
+
+template <typename T>
+[[nodiscard]] FORCE_INLINE constexpr vec3<T> min(vec3<T> a, vec3<T> b)
+{
+    return {std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z)};
+}
+
+template <typename T>
+[[nodiscard]] FORCE_INLINE constexpr vec3<T> max(vec3<T> a, vec3<T> b)
+{
+    return {std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)};
+}
+
+template <typename T>
+[[nodiscard]] FORCE_INLINE constexpr vec3<T>
+clamp(vec3<T> a, vec3<T> low, vec3<T> high)
+{
+    return {std::clamp(a.x, low.x, high.x),
+            std::clamp(a.y, low.y, high.y),
+            std::clamp(a.z, low.z, high.z)};
 }
 
 template <typename T>

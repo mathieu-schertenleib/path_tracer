@@ -27,7 +27,7 @@
            (1.0f / static_cast<float>(std::numeric_limits<u32>::max()));
 }
 
-// Returns a random float3 with length <= 1.0
+// Returns a random float3 with length <= 1
 [[nodiscard]] FORCE_INLINE constexpr float3
 random_in_sphere(u32 &state) noexcept
 {
@@ -43,13 +43,13 @@ random_in_sphere(u32 &state) noexcept
     }
 }
 
-[[nodiscard]] FORCE_INLINE float3 random_unit_vector(u32 &state) noexcept
+[[nodiscard]] FORCE_INLINE float3 random_unit_vector(u32 &rng_state) noexcept
 {
     for (;;)
     {
-        const float3 v {random(state) * 2.0f - 1.0f,
-                        random(state) * 2.0f - 1.0f,
-                        random(state) * 2.0f - 1.0f};
+        const float3 v {random(rng_state) * 2.0f - 1.0f,
+                        random(rng_state) * 2.0f - 1.0f,
+                        random(rng_state) * 2.0f - 1.0f};
         if (const auto length_sq {dot(v, v)};
             length_sq > 1e-8f && length_sq <= 1.0f)
         {
