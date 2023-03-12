@@ -1,10 +1,12 @@
 #ifndef DEFINITIONS_HPP
 #define DEFINITIONS_HPP
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #define FORCE_INLINE __forceinline
-#else
+#elif defined(__GNUC__)
 #define FORCE_INLINE __attribute__((always_inline)) inline
+#else
+#define FORCE_INLINE inline
 #endif
 
 #include <cstdint>

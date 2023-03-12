@@ -1,4 +1,5 @@
 #include "definitions.hpp"
+#include "math.hpp"
 #include "random.hpp"
 #include "render.hpp"
 
@@ -45,18 +46,18 @@ void glfw_error_callback(int error, const char *description)
     std::cerr << "GLFW Error " << error << ": " << description << '\n';
 }
 
-[[nodiscard]] FORCE_INLINE constexpr u8 float_to_u8(float c) noexcept
+[[nodiscard]] FORCE_INLINE constexpr u8 f32_to_u8(f32 c) noexcept
 {
-    return static_cast<u8>(std::clamp(c, 0.0f, 1.0f) * 255.0f);
+    return static_cast<u8>(math::clamp(c, 0.0f, 1.0f) * 255.0f);
 }
 
-[[nodiscard]] FORCE_INLINE float linear_to_srgb(float c)
+[[nodiscard]] FORCE_INLINE f32 linear_to_srgb(f32 c)
 {
     if (c <= 0.0031308f)
     {
         return 12.92f * c;
     }
-    return 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+    return 1.055f * math::pow(c, 1.0f / 2.4f) - 0.055f;
 }
 
 } // namespace
@@ -108,7 +109,7 @@ int main()
     constexpr auto image_size {
         static_cast<std::size_t>(image_width * image_height)};
     std::vector<Pixel> pixel_buffer(image_size);
-    std::vector<float3> accumulation_buffer(image_size);
+    std::vector<f32v3> accumulation_buffer(image_size);
 
     GLuint texture {};
     glGenTextures(1, &texture);
@@ -136,7 +137,7 @@ int main()
     }
     auto color_rng_state = rng_state;
 
-    Sample_type sample_type {Sample_type::color};
+    Sample_type sample_type {Sample_type::primitive_id};
 
     while (!glfwWindowShouldClose(window))
     {
@@ -200,7 +201,7 @@ int main()
             {
                 std::fill(accumulation_buffer.begin(),
                           accumulation_buffer.end(),
-                          float3 {});
+                          f32v3 {});
                 samples = 0;
             }
 
@@ -264,15 +265,15 @@ int main()
                         static_cast<std::size_t>(image_width) +
                     static_cast<std::size_t>(j);
                 const auto color = accumulation_buffer[buffer_index] /
-                                   static_cast<float>(samples);
+                                   static_cast<f32>(samples);
                 const auto pixel_index =
                     static_cast<std::size_t>(image_height - 1 - i) *
                         static_cast<std::size_t>(image_width) +
                     static_cast<std::size_t>(j);
                 pixel_buffer[pixel_index] = {
-                    float_to_u8(linear_to_srgb(color.x)),
-                    float_to_u8(linear_to_srgb(color.y)),
-                    float_to_u8(linear_to_srgb(color.z))};
+                    f32_to_u8(linear_to_srgb(color.x)),
+                    f32_to_u8(linear_to_srgb(color.y)),
+                    f32_to_u8(linear_to_srgb(color.z))};
             }
         }
 
@@ -292,10 +293,10 @@ int main()
                      GL_UNSIGNED_BYTE,
                      pixel_buffer.data());
 
-        constexpr auto buffer_aspect_ratio {static_cast<float>(image_width) /
-                                            static_cast<float>(image_height)};
-        const auto window_aspect_ratio {static_cast<float>(window_width) /
-                                        static_cast<float>(window_height)};
+        constexpr auto buffer_aspect_ratio {static_cast<f32>(image_width) /
+                                            static_cast<f32>(image_height)};
+        const auto window_aspect_ratio {static_cast<f32>(window_width) /
+                                        static_cast<f32>(window_height)};
         int displayed_x0;
         int displayed_y0;
         int displayed_x1;
@@ -303,7 +304,7 @@ int main()
         if (window_aspect_ratio >= buffer_aspect_ratio)
         {
             const auto displayed_width {static_cast<int>(
-                static_cast<float>(window_height) * buffer_aspect_ratio)};
+                static_cast<f32>(window_height) * buffer_aspect_ratio)};
             const auto displayed_height {window_height};
             displayed_x0 = (window_width - displayed_width) / 2;
             displayed_y0 = 0;
@@ -314,7 +315,7 @@ int main()
         {
             const auto displayed_width {window_width};
             const auto displayed_height {static_cast<int>(
-                static_cast<float>(window_width) / buffer_aspect_ratio)};
+                static_cast<f32>(window_width) / buffer_aspect_ratio)};
             displayed_x0 = 0;
             displayed_y0 = (window_height - displayed_height) / 2;
             displayed_x1 = displayed_x0 + displayed_width;

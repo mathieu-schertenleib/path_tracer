@@ -2,10 +2,8 @@
 #define RANDOM_HPP
 
 #include "definitions.hpp"
-#include "vec3.hpp"
+#include "vec.hpp"
 
-#include <cmath>
-#include <cstdint>
 #include <limits>
 
 [[nodiscard]] FORCE_INLINE constexpr u32 seed(u32 x) noexcept
@@ -27,33 +25,32 @@
            (1.0f / static_cast<float>(std::numeric_limits<u32>::max()));
 }
 
-// Returns a random float3 with length <= 1
-[[nodiscard]] FORCE_INLINE constexpr float3
-random_in_sphere(u32 &state) noexcept
+// Returns a random f32v3 with length <= 1
+[[nodiscard]] FORCE_INLINE constexpr f32v3 random_in_sphere(u32 &state) noexcept
 {
     for (;;)
     {
-        const float3 v {random(state) * 2.0f - 1.0f,
+        const f32v3 v {random(state) * 2.0f - 1.0f,
                         random(state) * 2.0f - 1.0f,
                         random(state) * 2.0f - 1.0f};
-        if (dot(v, v) <= 1.0f)
+        if (vec::dot(v, v) <= 1.0f)
         {
             return v;
         }
     }
 }
 
-[[nodiscard]] FORCE_INLINE float3 random_unit_vector(u32 &rng_state) noexcept
+[[nodiscard]] FORCE_INLINE f32v3 random_unit_vector(u32 &rng_state) noexcept
 {
     for (;;)
     {
-        const float3 v {random(rng_state) * 2.0f - 1.0f,
+        const f32v3 v {random(rng_state) * 2.0f - 1.0f,
                         random(rng_state) * 2.0f - 1.0f,
                         random(rng_state) * 2.0f - 1.0f};
-        if (const auto length_sq {dot(v, v)};
+        if (const auto length_sq {vec::dot(v, v)};
             length_sq > 1e-8f && length_sq <= 1.0f)
         {
-            return v * (1.0f / std::sqrt(length_sq));
+            return v * (1.0f / math::sqrt(length_sq));
         }
     }
 }

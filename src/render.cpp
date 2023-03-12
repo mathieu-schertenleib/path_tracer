@@ -5,17 +5,16 @@
 namespace
 {
 
-[[nodiscard]] constexpr float3 random_color(u32 base_state, u32 id) noexcept
+[[nodiscard]] constexpr f32v3 random_color(u32 base_state, u32 id) noexcept
 {
     auto rng_state = seed(base_state + id);
     return {random(rng_state), random(rng_state), random(rng_state)};
 }
 
-[[nodiscard]] float3
-radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
+[[nodiscard]] f32v3 radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
 {
-    float3 accumulated_color {};
-    float3 accumulated_reflectance {1.0f, 1.0f, 1.0f};
+    f32v3 accumulated_color {};
+    f32v3 accumulated_reflectance {1.0f, 1.0f, 1.0f};
     auto r = ray;
     for (int depth {};; ++depth)
     {
@@ -27,9 +26,9 @@ radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
 
         const auto &triangle = scene.triangles[payload.primitive_id];
         const auto triangle_normal =
-            normalize(cross(triangle.vertex1 - triangle.vertex0,
-                            triangle.vertex2 - triangle.vertex0));
-        const auto normal = dot(triangle_normal, r.direction) < 0.0f
+            vec::normalize(vec::cross(triangle.vertex1 - triangle.vertex0,
+                                      triangle.vertex2 - triangle.vertex0));
+        const auto normal = vec::dot(triangle_normal, r.direction) < 0.0f
                                 ? triangle_normal
                                 : -triangle_normal;
         auto albedo = scene.materials[triangle.material_id].albedo;
@@ -51,14 +50,14 @@ radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
         }
         accumulated_reflectance *= albedo;
 
-        auto new_direction = normal + random_in_sphere(rng_state);
-        if (length(new_direction) < 1e-6f)
+        auto new_direction = normal + random_unit_vector(rng_state);
+        if (vec::length(new_direction) < 1e-6f)
         {
             new_direction = normal;
         }
         else
         {
-            new_direction = normalize(new_direction);
+            new_direction = vec::normalize(new_direction);
         }
         r.origin = payload.position + 1e-6f * normal;
         r.direction = new_direction;
@@ -67,15 +66,15 @@ radiance(const Scene &scene, const Ray &ray, u32 &rng_state)
 
 } // namespace
 
-Camera create_camera(float3 position,
-                     float3 direction,
-                     float3 up,
-                     float focal_length,
-                     float sensor_width,
-                     float sensor_height)
+Camera create_camera(f32v3 position,
+                     f32v3 direction,
+                     f32v3 up,
+                     f32 focal_length,
+                     f32 sensor_width,
+                     f32 sensor_height)
 {
-    const auto local_x = normalize(cross(direction, up));
-    const auto local_y = cross(local_x, direction);
+    const auto local_x = vec::normalize(vec::cross(direction, up));
+    const auto local_y = vec::cross(local_x, direction);
     return Camera {.position = position,
                    .direction = direction,
                    .local_x = local_x,
@@ -94,37 +93,37 @@ Scene cornell_box()
     // z towards back
     // (0, 0, 0) is the front bottom right corner
 
-    constexpr float3 floor[] {{552.8f, 0.0f, 0.0f},
-                              {0.0f, 0.0f, 0.0f},
-                              {0.0f, 0.0f, 559.2f},
-                              {549.6f, 0.0f, 559.2f}};
+    constexpr f32v3 floor[] {{552.8f, 0.0f, 0.0f},
+                             {0.0f, 0.0f, 0.0f},
+                             {0.0f, 0.0f, 559.2f},
+                             {549.6f, 0.0f, 559.2f}};
 
-    constexpr float3 light[] {{343.0f, 520.0f, 227.0f},
-                              {343.0f, 520.0f, 332.0f},
-                              {213.0f, 520.0f, 332.0f},
-                              {213.0f, 520.0f, 227.0f}};
+    constexpr f32v3 light[] {{343.0f, 520.0f, 227.0f},
+                             {343.0f, 520.0f, 332.0f},
+                             {213.0f, 520.0f, 332.0f},
+                             {213.0f, 520.0f, 227.0f}};
 
-    constexpr float3 ceiling[] {{556.0f, 548.8f, 0.0f},
+    constexpr f32v3 ceiling[] {{556.0f, 548.8f, 0.0f},
+                               {556.0f, 548.8f, 559.2f},
+                               {0.0f, 548.8f, 559.2f},
+                               {0.0f, 548.8f, 0.0f}};
+
+    constexpr f32v3 back_wall[] {{549.6f, 0.0f, 559.2f},
+                                 {0.0f, 0.0f, 559.2f},
+                                 {0.0f, 548.8f, 559.2f},
+                                 {556.0f, 548.8f, 559.2f}};
+
+    constexpr f32v3 green_wall[] {{0.0f, 0.0f, 559.2f},
+                                  {0.0f, 0.0f, 0.0f},
+                                  {0.0f, 548.8f, 0.0f},
+                                  {0.0f, 548.8f, 559.2f}};
+
+    constexpr f32v3 red_wall[] {{552.8f, 0.0f, 0.0f},
+                                {549.6f, 0.0f, 559.2f},
                                 {556.0f, 548.8f, 559.2f},
-                                {0.0f, 548.8f, 559.2f},
-                                {0.0f, 548.8f, 0.0f}};
+                                {556.0f, 548.8f, 0.0f}};
 
-    constexpr float3 back_wall[] {{549.6f, 0.0f, 559.2f},
-                                  {0.0f, 0.0f, 559.2f},
-                                  {0.0f, 548.8f, 559.2f},
-                                  {556.0f, 548.8f, 559.2f}};
-
-    constexpr float3 green_wall[] {{0.0f, 0.0f, 559.2f},
-                                   {0.0f, 0.0f, 0.0f},
-                                   {0.0f, 548.8f, 0.0f},
-                                   {0.0f, 548.8f, 559.2f}};
-
-    constexpr float3 red_wall[] {{552.8f, 0.0f, 0.0f},
-                                 {549.6f, 0.0f, 559.2f},
-                                 {556.0f, 548.8f, 559.2f},
-                                 {556.0f, 548.8f, 0.0f}};
-
-    constexpr float3 short_block[] {
+    constexpr f32v3 short_block[] {
         {130.0f, 165.0f, 65.0f},  {82.0f, 165.0f, 225.0f},
         {240.0f, 165.0f, 272.0f}, {290.0f, 165.0f, 114.0f},
         {290.0f, 0.0f, 114.0f},   {290.0f, 165.0f, 114.0f},
@@ -136,7 +135,7 @@ Scene cornell_box()
         {240.0f, 0.0f, 272.0f},   {240.0f, 165.0f, 272.0f},
         {82.0f, 165.0f, 225.0f},  {82.0f, 0.0f, 225.0f}};
 
-    constexpr float3 tall_block[] {
+    constexpr f32v3 tall_block[] {
         {423.0f, 330.0f, 247.0f}, {265.0f, 330.0f, 296.0f},
         {314.0f, 330.0f, 456.0f}, {472.0f, 330.0f, 406.0f},
         {423.0f, 0.0f, 247.0f},   {423.0f, 330.0f, 247.0f},
@@ -199,33 +198,24 @@ Scene cornell_box()
         .background_color = {}};
 }
 
-float3 sample_pixel(const Scene &scene,
-                    int pixel_i,
-                    int pixel_j,
-                    int image_width,
-                    int image_height,
-                    Sample_type sample_type,
-                    u32 &rng_state,
-                    u32 color_rng_state)
+f32v3 sample_pixel(const Scene &scene,
+                   int pixel_i,
+                   int pixel_j,
+                   int image_width,
+                   int image_height,
+                   Sample_type sample_type,
+                   u32 &rng_state,
+                   u32 color_rng_state)
 {
-#if 1
-    const auto x = (static_cast<float>(pixel_j) + random(rng_state)) /
-                       static_cast<float>(image_width) -
+    const auto x = (static_cast<f32>(pixel_j) + random(rng_state)) /
+                       static_cast<f32>(image_width) -
                    0.5f;
     const auto y =
-        (static_cast<float>(image_height - 1 - pixel_i) + random(rng_state)) /
-            static_cast<float>(image_height) -
+        (static_cast<f32>(image_height - 1 - pixel_i) + random(rng_state)) /
+            static_cast<f32>(image_height) -
         0.5f;
-#else
-    const auto x = (static_cast<float>(pixel_j) + 0.5f) /
-                       static_cast<float>(image_width) * 2.0f -
-                   1.0f;
-    const auto y = (static_cast<float>(image_height - 1 - pixel_i) + 0.5f) /
-                       static_cast<float>(image_height) * 2.0f -
-                   1.0f;
-#endif
     const Ray ray {.origin = scene.camera.position,
-                   .direction = normalize(
+                   .direction = vec::normalize(
                        scene.camera.focal_length * scene.camera.direction +
                        x * scene.camera.sensor_width * scene.camera.local_x +
                        y * scene.camera.sensor_height * scene.camera.local_y)};
@@ -256,9 +246,9 @@ float3 sample_pixel(const Scene &scene,
         }
         const auto &triangle = scene.triangles[payload.primitive_id];
         const auto normal =
-            normalize(cross(triangle.vertex1 - triangle.vertex0,
-                            triangle.vertex2 - triangle.vertex0));
-        return (normal + float3 {1.0f, 1.0f, 1.0f}) * 0.5f;
+            vec::normalize(vec::cross(triangle.vertex1 - triangle.vertex0,
+                                      triangle.vertex2 - triangle.vertex0));
+        return (normal + f32v3 {1.0f, 1.0f, 1.0f}) * 0.5f;
     }
     case Sample_type::barycentric:
     {
@@ -267,7 +257,7 @@ float3 sample_pixel(const Scene &scene,
         {
             return {};
         }
-        return {payload.u, payload.v, 1.0f - payload.u - payload.v};
+        return {1.0f - payload.u - payload.v, payload.u, payload.v};
     }
     case Sample_type::primitive_id:
     {

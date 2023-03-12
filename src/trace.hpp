@@ -2,29 +2,29 @@
 #define TRACE_HPP
 
 #include "definitions.hpp"
-#include "vec3.hpp"
+#include "vec.hpp"
 
 #include <vector>
 
 struct Ray
 {
-    float3 origin;
-    float3 direction;
+    f32v3 origin;
+    f32v3 direction;
 };
 
 struct Triangle
 {
-    float3 vertex0;
-    float3 vertex1;
-    float3 vertex2;
+    f32v3 vertex0;
+    f32v3 vertex1;
+    f32v3 vertex2;
     u32 material_id;
 };
 
 struct Ray_payload
 {
-    float3 position;
-    float u;
-    float v;
+    f32v3 position;
+    f32 u;
+    f32 v;
     u32 primitive_id;
 };
 
