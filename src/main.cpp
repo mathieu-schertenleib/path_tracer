@@ -20,14 +20,11 @@
 #pragma GCC diagnostic pop
 #endif
 
-#define GLFW_INCLUDE_GLEXT
 #include <GLFW/glfw3.h>
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <limits>
 #include <random>
 #include <vector>
 
@@ -93,17 +90,6 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-#define LOAD_FUNCTION(name, type)                                              \
-    const auto name = reinterpret_cast<type>(glfwGetProcAddress(#name))
-
-    LOAD_FUNCTION(glGenFramebuffers, PFNGLGENFRAMEBUFFERSPROC);
-    LOAD_FUNCTION(glBindFramebuffer, PFNGLBINDFRAMEBUFFERPROC);
-    LOAD_FUNCTION(glFramebufferTexture2D, PFNGLFRAMEBUFFERTEXTURE2DPROC);
-    LOAD_FUNCTION(glBlitFramebuffer, PFNGLBLITFRAMEBUFFERPROC);
-    LOAD_FUNCTION(glDeleteFramebuffers, PFNGLDELETEFRAMEBUFFERSPROC);
-
-#undef LOAD_FUNCTION
-
     constexpr int image_width {256};
     constexpr int image_height {256};
     constexpr auto image_size {
@@ -114,19 +100,14 @@ int main()
     GLuint texture {};
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-
-    GLuint framebuffer {};
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
-    glFramebufferTexture2D(
-        GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     const auto scene = cornell_box();
 
     int samples {0};
     int samples_per_frame {1};
-    int total_samples {1000};
+    int total_samples {1};
 
     char image_filename[256] {};
 
@@ -147,7 +128,7 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (ImGui::Begin("Debug"))
+        if (ImGui::Begin("Settings"))
         {
             ImGui::Text("%.2f ms/frame, %.1f fps",
                         static_cast<double>(1000.0f / ImGui::GetIO().Framerate),
@@ -157,7 +138,7 @@ int main()
 
             ImGui::Text("%d samples", samples);
 
-            ImGui::SliderInt("Samples per frame", &samples_per_frame, 1, 100);
+            // ImGui::SliderInt("Samples per frame", &samples_per_frame, 1, 8);
 
             ImGui::InputInt("Total samples", &total_samples);
             bool reset_samples {false};
@@ -185,7 +166,7 @@ int main()
             if (ImGui::Combo("Sample type",
                              &sample_type_int,
                              sample_types,
-                             std::size(sample_types)))
+                             static_cast<int>(std::size(sample_types))))
             {
                 reset_samples = true;
             }
@@ -210,7 +191,6 @@ int main()
             if (ImGui::Button("Store to PNG") &&
                 std::strlen(image_filename) > 0)
             {
-                stbi_flip_vertically_on_write(true);
                 if (stbi_write_png(image_filename,
                                    image_width,
                                    image_height,
@@ -229,6 +209,34 @@ int main()
             }
         }
         ImGui::End();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2 {0.0f, 0.0f});
+        if (ImGui::Begin("Viewport"))
+        {
+            const auto [viewport_width, viewport_height] =
+                ImGui::GetContentRegionAvail();
+
+            constexpr auto image_aspect_ratio =
+                static_cast<f32>(image_width) / static_cast<f32>(image_height);
+            const auto viewport_aspect_ratio = viewport_width / viewport_height;
+            ImVec2 image_displayed_size {};
+            if (viewport_aspect_ratio >= image_aspect_ratio)
+            {
+                image_displayed_size.x = viewport_height * image_aspect_ratio;
+                image_displayed_size.y = viewport_height;
+            }
+            else
+            {
+                image_displayed_size.x = viewport_width;
+                image_displayed_size.y = viewport_width / image_aspect_ratio;
+            }
+
+            ImGui::Image(
+                reinterpret_cast<void *>(static_cast<std::uintptr_t>(texture)),
+                image_displayed_size);
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
 
         ImGui::Render();
 
@@ -256,33 +264,17 @@ int main()
             ++samples;
         }
 
-        for (int i {}; i < image_height; ++i)
+        for (std::size_t i {}; i < image_size; ++i)
         {
-            for (int j {}; j < image_width; ++j)
-            {
-                const auto buffer_index =
-                    static_cast<std::size_t>(i) *
-                        static_cast<std::size_t>(image_width) +
-                    static_cast<std::size_t>(j);
-                const auto color = accumulation_buffer[buffer_index] /
-                                   static_cast<f32>(samples);
-                const auto pixel_index =
-                    static_cast<std::size_t>(image_height - 1 - i) *
-                        static_cast<std::size_t>(image_width) +
-                    static_cast<std::size_t>(j);
-                pixel_buffer[pixel_index] = {
-                    f32_to_u8(linear_to_srgb(color.x)),
-                    f32_to_u8(linear_to_srgb(color.y)),
-                    f32_to_u8(linear_to_srgb(color.z))};
-            }
+            const auto color =
+                accumulation_buffer[i] / static_cast<f32>(samples);
+            pixel_buffer[i] = {f32_to_u8(linear_to_srgb(color.x)),
+                               f32_to_u8(linear_to_srgb(color.y)),
+                               f32_to_u8(linear_to_srgb(color.z))};
         }
 
-        int window_width {};
-        int window_height {};
-        glfwGetFramebufferSize(window, &window_width, &window_height);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-
         glTexImage2D(GL_TEXTURE_2D,
                      0,
                      GL_RGB,
@@ -293,52 +285,11 @@ int main()
                      GL_UNSIGNED_BYTE,
                      pixel_buffer.data());
 
-        constexpr auto buffer_aspect_ratio {static_cast<f32>(image_width) /
-                                            static_cast<f32>(image_height)};
-        const auto window_aspect_ratio {static_cast<f32>(window_width) /
-                                        static_cast<f32>(window_height)};
-        int displayed_x0;
-        int displayed_y0;
-        int displayed_x1;
-        int displayed_y1;
-        if (window_aspect_ratio >= buffer_aspect_ratio)
-        {
-            const auto displayed_width {static_cast<int>(
-                static_cast<f32>(window_height) * buffer_aspect_ratio)};
-            const auto displayed_height {window_height};
-            displayed_x0 = (window_width - displayed_width) / 2;
-            displayed_y0 = 0;
-            displayed_x1 = displayed_x0 + displayed_width;
-            displayed_y1 = displayed_y0 + displayed_height;
-        }
-        else
-        {
-            const auto displayed_width {window_width};
-            const auto displayed_height {static_cast<int>(
-                static_cast<f32>(window_width) / buffer_aspect_ratio)};
-            displayed_x0 = 0;
-            displayed_y0 = (window_height - displayed_height) / 2;
-            displayed_x1 = displayed_x0 + displayed_width;
-            displayed_y1 = displayed_y0 + displayed_height;
-        }
-
-        glBlitFramebuffer(0,
-                          0,
-                          image_width,
-                          image_height,
-                          displayed_x0,
-                          displayed_y0,
-                          displayed_x1,
-                          displayed_y1,
-                          GL_COLOR_BUFFER_BIT,
-                          GL_NEAREST);
-
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
     }
 
-    glDeleteFramebuffers(1, &framebuffer);
     glDeleteTextures(1, &texture);
 
     ImGui_ImplOpenGL3_Shutdown();

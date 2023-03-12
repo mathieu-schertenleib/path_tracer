@@ -57,9 +57,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(path_tracer PRIVATE ${GCC_OPTIONS})
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(path_tracer PRIVATE /W4 /Zc:__cplusplus)
+    target_compile_options(path_tracer PRIVATE /W4 /Zc:__cplusplus /arch:AVX2)
 else ()
     message(WARNING "No compile options set for compiler '${CMAKE_CXX_COMPILER_ID}'")
 endif ()
 
-target_compile_definitions(path_tracer PRIVATE $<$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>:NDEBUG>)
+target_compile_definitions(path_tracer PRIVATE
+        $<$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>:NDEBUG>
+        _CRT_SECURE_NO_WARNINGS)

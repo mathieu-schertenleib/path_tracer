@@ -3,7 +3,64 @@
 
 #include "definitions.hpp"
 
+#if defined __SSE__ || defined __x86_64__
+#define SIMD_SSE 1
+#else
+#define SIMD_SSE 0
+#endif
+#if defined __SSE2__ || defined __x86_64__
+#define SIMD_SSE2 1
+#else
+#define SIMD_SSE2 0
+#endif
+#ifdef __SSE3__
+#define SIMD_SSE3 1
+#else
+#define SIMD_SSE3 0
+#endif
+#ifdef __SSE4_1__
+#define SIMD_SSE4_1 1
+#else
+#define SIMD_SSE4_1 0
+#endif
+#ifdef __SSE4_2__
+#define SIMD_SSE4_2 1
+#else
+#define SIMD_SSE4_2 0
+#endif
+#ifdef __AVX__
+#define SIMD_AVX 1
+#else
+#define SIMD_AVX 0
+#endif
+#ifdef __AVX2__
+#define SIMD_AVX2 1
+#else
+#define SIMD_AVX2 0
+#endif
+#ifdef __FMA__
+#define SIMD_FMA 1
+#else
+#define SIMD_FMA 0
+#endif
+
+#if !SIMD_AVX
+#error "The implementation currently only supports AVX"
+#endif
+
+constexpr inline bool simd_sse {SIMD_SSE};
+constexpr inline bool simd_sse2 {SIMD_SSE2};
+constexpr inline bool simd_sse3 {SIMD_SSE3};
+constexpr inline bool simd_sse4_1 {SIMD_SSE4_1};
+constexpr inline bool simd_sse4_2 {SIMD_SSE4_2};
+constexpr inline bool simd_avx {SIMD_AVX};
+constexpr inline bool simd_avx2 {SIMD_AVX2};
+constexpr inline bool simd_fma {SIMD_FMA};
+
+#if SIMD_SSE || SIMD_SSE2 || SIMD_SSE3 || SIMD_SSE4_1 || SIMD_SSE4_2 ||        \
+    SIMD_AVX || SIMD_AVX2 || SIMD_FMA
 #include <immintrin.h>
+#endif
 
 struct vf32
 {
@@ -23,10 +80,15 @@ namespace simd
     return {_mm256_set1_ps(a)};
 }
 
-[[nodiscard]] FORCE_INLINE vf32
-set(f32 a, f32 b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h)
+template <typename F>
+    requires requires(F f, int i) {
+                 {
+                     f(i)
+                 } -> std::same_as<f32>;
+             }
+[[nodiscard]] FORCE_INLINE vf32 fill(F &&f)
 {
-    return {_mm256_set_ps(a, b, c, d, e, f, g, h)};
+    return {_mm256_set_ps(f(0), f(1), f(2), f(3), f(4), f(5), f(6), f(7))};
 }
 
 [[nodiscard]] FORCE_INLINE vf32 broadcast(const f32 *p)

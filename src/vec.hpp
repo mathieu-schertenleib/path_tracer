@@ -180,9 +180,12 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] FORCE_INLINE v3<T> normalize(v3<T> a)
+[[nodiscard]] FORCE_INLINE v3<T> normalize(v3<T> a);
+
+template <>
+[[nodiscard]] FORCE_INLINE v3<f32> normalize(v3<f32> a)
 {
-    return a * (T {1.0f} / vec::length(a));
+    return a * (1.0f / vec::length(a));
 }
 
 } // namespace vec
